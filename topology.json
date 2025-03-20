@@ -1,0 +1,71 @@
+{
+    "switches": [
+        "s1",
+        "s2",
+        "s3",
+        "s4",
+        "s5"
+    ],
+    "links": [
+        {
+            "src": "s1",
+            "dst": "s2",
+            "type": "SF"
+        },
+        {
+            "src": "s2",
+            "dst": "s3",
+            "type": "SF"
+        },
+        {
+            "src": "s3",
+            "dst": "s4",
+            "type": "SF"
+        },
+        {
+            "src": "s1",
+            "dst": "s4",
+            "type": "SF"
+        },
+        {
+            "src": "s1",
+            "dst": "s5",
+            "type": "SF"
+        },
+        {
+            "src": "s2",
+            "dst": "s5",
+            "type": "SF"
+        },
+        {
+            "src": "s3",
+            "dst": "s5",
+            "type": "SF"
+        },
+        {
+            "src": "s4",
+            "dst": "s5",
+            "type": "SF"
+        },
+        {
+            "src": "s1",
+            "dst": "s3",
+            "type": "SF"
+        },
+        {
+            "src": "s2",
+            "dst": "s4",
+            "type": "SF"
+        },
+        {
+            "src": "s1",
+            "dst": "p0",
+            "type": "physical"
+        },
+        {
+            "src": "s3",
+            "dst": "p1",
+            "type": "physical"
+        }
+    ]
+}
