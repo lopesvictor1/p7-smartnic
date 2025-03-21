@@ -127,11 +127,13 @@ def main():
         
         # Increment counters
         sf_num_counter += 1
+        sf_index += 1
         driver_counter += 1
         if pf_num == 0:
             pci_00_sf_index += 1
         else:
             pci_01_sf_index += 1
+        
         
         # Create SF for destination switch
         sf_dst_name, dst_driver = create_sf(pf_num, sf_num_counter, sf_index, driver_counter)

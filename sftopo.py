@@ -1,6 +1,6 @@
 import json
-import networkx as nx
-import matplotlib.pyplot as plt
+#import networkx as nx
+#import matplotlib.pyplot as plt
 
 class SFTopo:
     def __init__(self):
@@ -32,7 +32,7 @@ class SFTopo:
         for link in self.topology["links"]:
             print(f"{link['src']} --> {link['dst']} ({link['type']})")
 
-    def visualize_topology(self):
+    '''def visualize_topology(self):
         """Displays the topology graphically using NetworkX and Matplotlib."""
         G = nx.Graph()
 
@@ -49,4 +49,4 @@ class SFTopo:
         pos = nx.spring_layout(G)  # Positioning algorithm for better visualization
         nx.draw(G, pos, with_labels=True, node_color="lightblue", edge_color="gray", node_size=3000, font_size=10)
         plt.title("SFTopo Network Topology")
-        plt.show()
+        plt.show()'''
