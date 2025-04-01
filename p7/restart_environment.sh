@@ -5,7 +5,8 @@ build_hairpin_code() {
     
     # Build hairpin code
     export PKG_CONFIG_PATH=:/opt/mellanox/doca/lib/aarch64-linux-gnu/pkgconfig:/opt/mellanox/dpdk/lib/aarch64-linux-gnu/pkgconfig:/opt/mellanox
-    cd /hairpin/
+    CURRENT_PATH=$(pwd)
+    cd $CURRENT_PATH/hairpin
     meson build
     cd build
     ninja
@@ -70,6 +71,9 @@ enable_hw_offload() {
 # Main execution
 echo "Starting environment setup..."
 
+#kill any prev app
+killall doca_flow_hairpin_vnf
+
 # Step 1: Clean existing environment
 cleanup_bridges
 sleep 1
@@ -83,7 +87,7 @@ setup_hugepages
 enable_hw_offload
 
 # Step 4: Check if hairpin code needs to be built
-if [ ! -f "/hairpin/build/doca_flow_hairpin_vnf" ]; then
+if [ ! -f "hairpin/build/doca_flow_hairpin_vnf" ]; then
     build_hairpin_code
 else
     echo "Hairpin code already built. Skipping build step."

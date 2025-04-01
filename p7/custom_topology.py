@@ -37,12 +37,14 @@ def add_port_to_bridge(bridge_name, port_name):
 def run_hairpin(driver1, driver2, hp_num):
     """Run the hairpin VNF between two SFs"""
     unique_prefix = f"hp{hp_num}_{int(time.time())}"
-    cmd = f"./flow_hairpin_vnf_marcelo/build/doca_flow_hairpin_vnf -a auxiliary:mlx5_core.sf.{driver1},dv_flow_en=2 -a auxiliary:mlx5_core.sf.{driver2},dv_flow_en=2 --file-prefix={unique_prefix} &"
+    cmd = f"./hairpin/build/doca_flow_hairpin_vnf -a auxiliary:mlx5_core.sf.{driver1},dv_flow_en=2 -a auxiliary:mlx5_core.sf.{driver2},dv_flow_en=2 --file-prefix={unique_prefix} &"
     print(f"Starting hairpin between drivers {driver1} and {driver2}: {cmd}")
     subprocess.run(cmd, shell=True, check=True)
 
 def set_bidirectional_flow(bridge_name, port1, port2):
     """Set bidirectional flow rules between two ports"""
+    print("debugging... ") 
+    print(f"ovs-ofctl add-flow {bridge_name} \"in_port={port1},actions=output:{port2}\"")
     os.system(f"ovs-ofctl add-flow {bridge_name} \"in_port={port1},actions=output:{port2}\"")
     os.system(f"ovs-ofctl add-flow {bridge_name} \"in_port={port2},actions=output:{port1}\"")
     print(f"Set bidirectional flow between {port1} and {port2} on {bridge_name}")
@@ -50,23 +52,39 @@ def set_bidirectional_flow(bridge_name, port1, port2):
 def add_physical_port(bridge_name, port_name):
     """Add physical port to a bridge"""
     os.system(f"ovs-vsctl add-port {bridge_name} {port_name}")
-    os.system(f"ovs-vsctl add-port {bridge_name} pf{port_name[-1]}hpf")
+    #os.system(f"ovs-vsctl add-port {bridge_name} pf{port_name[-1]}hpf")
     print(f"Added physical port {port_name} and pf{port_name[-1]}hpf to {bridge_name}")
 
+
+#def get_port_numbers(bridge_name):
+#    """Get port numbers for all ports in a bridge"""
+#    result = subprocess.run(f"ovs-ofctl show {bridge_name}", shell=True, capture_output=True, text=True)
+#    output = result.stdout
+#    port_numbers = {}
+#    for line in output.split('\n'):
+#        if 'port=' in line:
+#            parts = line.strip().split()
+#            port_num = parts[0].split('(')[0]
+#            port_name = parts[1].split(':')[0]
+#            port_numbers[port_name] = port_num
+#    
+#    return port_numbers
+
 def get_port_numbers(bridge_name):
-    """Get port numbers for all ports in a bridge"""
-    result = subprocess.run(f"ovs-ofctl show {bridge_name}", shell=True, capture_output=True, text=True)
+    
+    result = subprocess.run(f"ovs-vsctl list-ports {bridge_name}", shell=True, capture_output=True, text=True)
     output = result.stdout
     port_numbers = {}
+    for port_name in output.split('\n'):
+        result_port_number = subprocess.run(f"ovs-vsctl get Interface {port_name} ofport", shell=True, capture_output=True, text=True)
+        output2 = result_port_number.stdout
+        output2 = output2.replace("\n", "")
+        if port_name != '': 
+            port_numbers[port_name] = output2
     
-    for line in output.split('\n'):
-        if 'port=' in line:
-            parts = line.strip().split()
-            port_num = parts[0].split('(')[0]
-            port_name = parts[1].split(':')[0]
-            port_numbers[port_name] = port_num
-    
-    return port_numbers
+    print("Port numbers")
+    print(port_numbers)
+    return port_numbers 
 
 def main():
     parser = argparse.ArgumentParser(description="Create SF topology from JSON file")
@@ -162,14 +180,23 @@ def main():
     for switch in switches:
         switch_port_numbers[switch] = get_port_numbers(switch)
     
+    print(switch_port_numbers)
+    
+    for switch in switches:
+       first_key, first_value = list(switch_port_numbers[switch].items())[0]
+       second_key, second_value = list(switch_port_numbers[switch].items())[1]
+       print(first_key + " " + second_key)
+       set_bidirectional_flow(switch, first_key, second_key)
+
+
     # Set bidirectional flows within each switch
-    for switch, interfaces in switch_interfaces.items():
-        for port1, port2 in itertools.combinations(interfaces, 2):
+    #for switch, interfaces in switch_interfaces.items():
+    #    for port1, port2 in itertools.combinations(interfaces, 2):
             # If both ports exist on this switch
-            if port1 in switch_port_numbers[switch] and port2 in switch_port_numbers[switch]:
-                port1_num = switch_port_numbers[switch][port1]
-                port2_num = switch_port_numbers[switch][port2]
-                set_bidirectional_flow(switch, port1_num, port2_num)
+    #        if port1 in switch_port_numbers[switch] and port2 in switch_port_numbers[switch]:
+    #            port1_num = switch_port_numbers[switch][port1]
+    #            port2_num = switch_port_numbers[switch][port2]
+    #            set_bidirectional_flow(switch, port1_num, port2_num)
     
     print("\nTopology setup complete!")
 
