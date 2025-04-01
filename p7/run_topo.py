@@ -16,8 +16,8 @@ def main():
     #topo.add_switch("s10")
     
     # Add links
-    topo.add_link("s1", "s2")
-    topo.add_link("s2", "s3")
+    topo.add_link("s1", "s2", bandwidth=1000, latency=10, jitter=5, packet_loss=0.1)
+    topo.add_link("s2", "s3", bandwidth=2000, latency=20, jitter=10, packet_loss=0.2)
     #topo.add_link("s3", "s4")
     #topo.add_link("s4", "s5")
     #topo.add_link("s5", "s6")
