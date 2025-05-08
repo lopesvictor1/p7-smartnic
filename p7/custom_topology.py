@@ -29,10 +29,13 @@ def create_sf(pf_num, sf_num, sf_index, driver_counter):
     interface_name = f"en3f{pf_num}pf{pf_num}sf{sf_num}"
     return interface_name, driver_counter
 
-def add_port_to_bridge(bridge_name, port_name):
+def add_port_to_bridge(bridge_name, port_name, bandwidth=None):
     """Add a port to an OVS bridge"""
     os.system(f"ovs-vsctl add-port {bridge_name} {port_name}")
     print(f"Added port {port_name} to bridge {bridge_name}")
+    if bandwidth is not None:
+        os.system(f"ovs-vsctl set interface {port_name} ingress_policing_rate={bandwidth}")
+        print(f"Interface {port_name} set up with bandwidth = {bandwidth}")
 
 def run_hairpin(driver1, driver2, hp_num):
     """Run the hairpin VNF between two SFs"""
@@ -40,6 +43,13 @@ def run_hairpin(driver1, driver2, hp_num):
     cmd = f"./hairpin/build/doca_flow_hairpin_vnf -a auxiliary:mlx5_core.sf.{driver1},dv_flow_en=2 -a auxiliary:mlx5_core.sf.{driver2},dv_flow_en=2 --file-prefix={unique_prefix} &"
     print(f"Starting hairpin between drivers {driver1} and {driver2}: {cmd}")
     subprocess.run(cmd, shell=True, check=True)
+
+def run_rss(driver1, driver2, hp_num, latency, jitter, packet_loss):
+    unique_prefix = f"hp{hp_num}_{int(time.time())}"
+    cmd = f"./rss/build/doca_flow_rss_vnf {latency} {jitter} {packet_loss  } -a auxiliary:mlx5_core.sf.{driver1},dv_flow_en=2 -a auxiliary:mlx5_core.sf.{driver2},dv_flow_en=2 --file-prefix={unique_prefix} &"
+    print(f"Starting hairpin between drivers {driver1} and {driver2}: {cmd}")
+    subprocess.run(cmd, shell=True, check=True)
+
 
 def set_bidirectional_flow(bridge_name, port1, port2):
     """Set bidirectional flow rules between two ports"""
@@ -56,22 +66,7 @@ def add_physical_port(bridge_name, port_name):
     print(f"Added physical port {port_name} and pf{port_name[-1]}hpf to {bridge_name}")
 
 
-#def get_port_numbers(bridge_name):
-#    """Get port numbers for all ports in a bridge"""
-#    result = subprocess.run(f"ovs-ofctl show {bridge_name}", shell=True, capture_output=True, text=True)
-#    output = result.stdout
-#    port_numbers = {}
-#    for line in output.split('\n'):
-#        if 'port=' in line:
-#            parts = line.strip().split()
-#            port_num = parts[0].split('(')[0]
-#            port_name = parts[1].split(':')[0]
-#            port_numbers[port_name] = port_num
-#    
-#    return port_numbers
-
-def get_port_numbers(bridge_name):
-    
+def get_port_numbers(bridge_name):    
     result = subprocess.run(f"ovs-vsctl list-ports {bridge_name}", shell=True, capture_output=True, text=True)
     output = result.stdout
     port_numbers = {}
@@ -110,7 +105,7 @@ def main():
     
     # Track interfaces for each switch and ports that need hairpins
     switch_interfaces = defaultdict(list)
-    hairpin_pairs = []
+    link_pairs = []
     sf_drivers = {}  # Track driver counters for each SF interface
     
     # Add physical ports first
@@ -132,6 +127,10 @@ def main():
     for i, link in enumerate(sf_links):
         src_switch = link.get("src")
         dst_switch = link.get("dst")
+        bandwidth = link.get("bandwidth")
+        latency = link.get("latency")
+        jitter = link.get("jitter")
+        packet_loss = link.get("packet_loss")
         
         # Determine which PF to use based on the link position
         pf_num = 0 if i < half_point else 1
@@ -140,7 +139,7 @@ def main():
         # Create SF for source switch
         sf_src_name, src_driver = create_sf(pf_num, sf_num_counter, sf_index, driver_counter)
         sf_drivers[sf_src_name] = src_driver
-        add_port_to_bridge(src_switch, sf_src_name)
+        add_port_to_bridge(src_switch, sf_src_name, bandwidth=bandwidth)
         switch_interfaces[src_switch].append(sf_src_name)
         
         # Increment counters
@@ -156,7 +155,7 @@ def main():
         # Create SF for destination switch
         sf_dst_name, dst_driver = create_sf(pf_num, sf_num_counter, sf_index, driver_counter)
         sf_drivers[sf_dst_name] = dst_driver
-        add_port_to_bridge(dst_switch, sf_dst_name)
+        add_port_to_bridge(dst_switch, sf_dst_name, bandwidth=bandwidth)
         switch_interfaces[dst_switch].append(sf_dst_name)
         
         # Increment counters again
@@ -167,13 +166,17 @@ def main():
         else:
             pci_01_sf_index += 1
         
-        # Record the hairpin pair
-        hairpin_pairs.append((sf_src_name, sf_dst_name))
+        # Record the link pair
+        link_pairs.append((sf_src_name, sf_dst_name, latency, jitter, packet_loss))
     
     # Create hairpins between SF pairs
-    for i, (sf1, sf2) in enumerate(hairpin_pairs):
-        run_hairpin(driver1=sf_drivers[sf1], driver2=sf_drivers[sf2], hp_num=i)
-        time.sleep(1)
+    for i, (sf1, sf2, latency, jitter, packet_loss) in enumerate(link_pairs):
+        if latency is None and jitter is None and packet_loss is None:
+            run_hairpin(driver1=sf_drivers[sf1], driver2=sf_drivers[sf2], hp_num=i)
+            time.sleep(1)
+        else:
+            run_rss(driver1=sf_drivers[sf1], driver2=sf_drivers[sf2], hp_num=i, latency=latency, jitter=jitter, packet_loss=packet_loss)
+            time.sleep(1)
     
     # Get port numbers for all switches
     switch_port_numbers = {}
@@ -185,18 +188,9 @@ def main():
     for switch in switches:
        first_key, first_value = list(switch_port_numbers[switch].items())[0]
        second_key, second_value = list(switch_port_numbers[switch].items())[1]
-       print(first_key + " " + second_key)
+       print(first_key + " <--> " + second_key)
        set_bidirectional_flow(switch, first_key, second_key)
 
-
-    # Set bidirectional flows within each switch
-    #for switch, interfaces in switch_interfaces.items():
-    #    for port1, port2 in itertools.combinations(interfaces, 2):
-            # If both ports exist on this switch
-    #        if port1 in switch_port_numbers[switch] and port2 in switch_port_numbers[switch]:
-    #            port1_num = switch_port_numbers[switch][port1]
-    #            port2_num = switch_port_numbers[switch][port2]
-    #            set_bidirectional_flow(switch, port1_num, port2_num)
     
     print("\nTopology setup complete!")
 

@@ -1,3 +1,4 @@
+import os
 import json
 import networkx as nx
 import matplotlib.pyplot as plt
@@ -97,3 +98,8 @@ class SFTopo:
         
         plt.title("SFTopo Network Topology with Network Parameters")
         plt.show()
+
+    def start(self):
+        self.to_json("topology.json")
+        os.system("bash restart_environment.sh")
+        os.system("python3 custom_topology.py")

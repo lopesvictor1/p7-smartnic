@@ -2,26 +2,36 @@
     "switches": [
         "s1",
         "s2",
-        "s3"
+        "s3",
+        "s4"
     ],
     "links": [
         {
             "src": "s1",
             "dst": "s2",
             "type": "SF",
-            "bandwidth": 1000,
-            "latency": 10,
-            "jitter": 5,
-            "packet_loss": 0.1
+            "bandwidth": 100,
+            "latency": null,
+            "jitter": null,
+            "packet_loss": null
         },
         {
             "src": "s2",
             "dst": "s3",
             "type": "SF",
-            "bandwidth": 2000,
-            "latency": 20,
-            "jitter": 10,
-            "packet_loss": 0.2
+            "bandwidth": null,
+            "latency": null,
+            "jitter": null,
+            "packet_loss": null
+        },
+        {
+            "src": "s3",
+            "dst": "s4",
+            "type": "SF",
+            "bandwidth": null,
+            "latency": null,
+            "jitter": null,
+            "packet_loss": null
         },
         {
             "src": "s1",
@@ -33,7 +43,7 @@
             "packet_loss": null
         },
         {
-            "src": "s3",
+            "src": "s4",
             "dst": "p1",
             "type": "physical",
             "bandwidth": null,
